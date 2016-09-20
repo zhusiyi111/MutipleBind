@@ -1,0 +1,204 @@
+<html>
+
+<head>
+<meta charset="utf-8">
+    <style>
+        input{
+            display: inline-block;
+            margin: 10px 0px;
+        }
+        button{
+            color:white;
+            background: green;
+            margin-left: 50px;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    输入1：<input id="input1" /><button id="btn1">已绑定</button><br/>
+    输入2：<input id="input2" /><button id="btn2">已绑定</button><br/>
+    输入3：<input id="input3" /><button id="btn3">已绑定</button><br/>
+    输入4：<input id="input4" /><button id="btn4">已绑定</button><br/>
+</body>
+<script>
+
+
+
+(function(){
+    window.MultipleBind = function (option) {
+        var misplaySpace = new MultipleBind();
+        misplaySpace.Init(option);
+    }
+
+    var MultipleBind = function(){
+    }
+
+    MultipleBind.prototype = {
+        Init : function(option){
+            var Default = {
+                idStrArray:[]
+            };
+            var _option = option;
+            this.idStrArray = _option.idStrArray || Default.idStrArray;
+            this.eleIdGroup = idGroupProcess(this.idStrArray);
+        }
+    }
+
+
+
+    function idGroupProcess(idStrArray){
+        var i,result=[];
+        for(i=0;i<idStrArray.length;i++){
+           var dom = document.getElementById(idStrArray[i]);
+            result.push(dom);
+        }
+        return result;
+    }
+})(window);
+
+MultipleBind({
+    idStrArray:['input1','input2','input3','input4']
+});
+
+
+    var input1 = document.getElementById('input1');
+    var input2 = document.getElementById('input2');
+    var input3 = document.getElementById('input3');
+    var input4 = document.getElementById('input4');
+
+    var eleIdGroup = [input1,input2,input3,input4];
+
+
+
+    //发布者类
+    function Publisher(){
+        this.observers = [];    //观察者列表
+        this.state = "";        //待发布的消息
+    }
+
+//  发布者方法1：添加订阅消息的“订阅者”
+    Publisher.prototype.addOb=function(observer){
+        var flag = false;
+        for (var i = this.observers.length - 1; i >= 0; i--) {
+            if(this.observers[i]===observer){
+                flag=true;
+            }
+        };
+        if(!flag){
+            this.observers.push(observer);
+        }
+    }
+
+// 发布者方法2：移除某个订阅消息的“订阅者”，即：退订
+    Publisher.prototype.removeOb=function(observer){
+        var observers = this.observers;
+        for (var i = 0; i < observers.length; i++) {
+            if(observers[i]===observer){
+                observers.splice(i,1);
+            }
+        };
+    }
+
+// 发布者方法3：发布消息
+    Publisher.prototype.notice=function(){
+        var observers = this.observers;
+        for (var i = 0; i < observers.length; i++) {    //遍历所有订阅消息的“订阅者”
+            observers[i].update(this.state);    //对其发布消息
+        };
+    }
+
+
+//  订阅者类
+    function Subscribe(){
+        // 仅有一个方法，接收到推送的消息后，更新数据。
+        this.update = function(data){
+            eleIdGroup[this.id].value = data;   //在这里体现为改变自己的值
+        };
+    }
+
+
+// 初始化“订阅——发布”者
+    function init(eleArray){
+        var i,j;
+        for(i=0;i<eleArray.length;i++) {
+            eleArray[i].pub = new Publisher();  //为每一个元素添加一个pub发布者属性
+            eleArray[i].sub = new Subscribe();  //为每一个元素添加一个sub订阅者属性
+            eleArray[i].sub.id = i;             //重要！辨别该元素的id
+        }
+        for(i=0;i<eleArray.length;i++){
+            for(j=0;j<eleArray.length;j++){
+                eleArray[i].pub.addOb(eleArray[j].sub);  //二重循环，为每一个元素的
+            }                                            //发布属性添加订阅者
+        }
+    }
+    init(eleIdGroup);
+
+
+    document.oninput = function(e){         //事件委托
+        var e = e || window.event;
+        var target = e.target || e.srcElement;
+        if(eleIdGroup.indexOf(target)!=-1){     //如果“订阅/发布者”列表里面有这个input元素
+            target.pub.state = target.value;    //设置消息    
+            target.pub.notice();                //推送消息给所有订阅者
+        }
+    };
+
+
+    var btn1 = document.getElementById('btn1');
+    var btn2 = document.getElementById('btn2');
+    var btn3 = document.getElementById('btn3');
+    var btn4 = document.getElementById('btn4');
+
+    var btnIdGroup = [btn1,btn2,btn3,btn4];
+
+    var Cache = function(){    //缓存类，闭包实现按钮的状态
+        var status = 1;
+        return {
+            getCache:function(){
+                return status*=-1;
+            }
+        }
+    };
+
+    (function(){
+        var i;
+        for(i=0;i<btnIdGroup.length;i++){
+            btnIdGroup[i].status = new Cache();//为每一个按钮设置一个缓存区，保存按钮状态
+        }
+    })();
+
+
+    (function(){
+        var btnGroup = document.getElementsByTagName('button'),
+                i;
+        for(i=0;i<btnGroup.length;i++){
+            (function(num){                     //闭包实现为每个button设置点击事件
+                btnGroup[num].onclick = function(e){
+                    var e = e || window.event,
+                        target = e.target || e.srcElement;
+                    if(btnIdGroup.indexOf(target)!=-1){
+                        var i = target.status.getCache(),
+                                ele = document.getElementById('input'+(num+1));
+                        if (1 != i) {                               //如果之前是绑定状态
+                            if (eleIdGroup.indexOf(ele) != -1) {    //列表里面又有该元素
+                                eleIdGroup.splice(eleIdGroup.indexOf(ele), 1);  //对其解绑，从列表中删去
+                                target.style.backgroundColor = 'red';
+                                target.innerHTML = '已解绑';
+                            }
+                        } else {                                    //如果之前是未绑定状态
+                            if(eleIdGroup.indexOf(ele) == -1) {     //列表里面又有该元素
+                                eleIdGroup.push(ele);               //将其添加进列表，绑定
+                                target.style.backgroundColor = 'green';
+                                target.innerHTML = '已绑定';
+                            }
+                        }
+                        init(eleIdGroup);                           //重新初始化各元素发布属性的订阅者
+                    }
+                };
+            })(i);
+        }
+    })();
+
+</script>
+</html>
